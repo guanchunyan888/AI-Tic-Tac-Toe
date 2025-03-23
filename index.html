@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI井字棋游戏</title>
+    <link rel="icon" href="icon.jpg" type="image/jpeg">
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --container-bg: white;
+            --text-color: #333;
+            --cell-bg: #eee;
+            --cell-hover: #ddd;
+            --button-bg: #4CAF50;
+            --button-hover: #45a049;
+            --button-active: #2E8B57;
+            --win-highlight: #b8e0b8;
+            --thinking-color: #e67e22;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --border-color: #e0e0e0;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --container-bg: #2a2a2a;
+            --text-color: #e0e0e0;
+            --cell-bg: #3a3a3a;
+            --cell-hover: #4a4a4a;
+            --button-bg: #388e3c;
+            --button-hover: #2e7d32;
+            --button-active: #1b5e20;
+            --win-highlight: #1b5e20;
+            --thinking-color: #f39c12;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --border-color: #3a3a3a;
+        }
+        
+        * {
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--bg-color);
+            padding: 20px;
+            color: var(--text-color);
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        h1 {
+            color: var(--text-color);
+            margin-bottom: 5px;
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+        
+        .author {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: var(--text-color);
+            opacity: 0.7;
+            text-align: center;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: var(--container-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px var(--shadow-color);
+            animation: slideUp 0.5s ease-out;
+            max-width: 90%;
+            width: 400px;
+            margin-left: -20px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 8px;
+            margin: 20px 0;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: var(--cell-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 48px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cell:hover {
+            background-color: var(--cell-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 10px var(--shadow-color);
+        }
+        
+        .cell.disabled {
+            cursor: not-allowed;
+            opacity: 0.8;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .cell::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+        
+        .cell:active::after {
+            width: 150px;
+            height: 150px;
+            opacity: 0;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        
+        .mode-buttons, .first-move-buttons, .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        
+        .settings-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transform: translateX(-15px);
+        }
+        
+        .settings-label {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        
+        .settings-label::after {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 2px;
+            background-color: var(--button-bg);
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        button {
+            padding: 10px 15px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+        
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+        
+        button:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+        
+        button:active::after {
+            width: 150px;
+            height: 150px;
+            opacity: 0;
+        }
+        
+        button.active {
+            background-color: var(--button-active);
+            font-weight: bold;
+            box-shadow: 0 2px 3px var(--shadow-color);
+        }
+        
+        .status {
+            font-size: 24px;
+            margin: 15px 0;
+            font-weight: bold;
+            min-height: 36px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .win-highlight {
+            background-color: var(--win-highlight);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .thinking {
+            color: var(--thinking-color);
+            animation: pulse 1.5s infinite;
+        }
+        
+        .dark-mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: transparent;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 100;
+            padding: 10px;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+            color: var(--text-color);
+            box-shadow: 0 2px 5px var(--shadow-color);
+            background-color: var(--container-bg);
+        }
+        
+        .dark-mode-toggle:hover {
+            transform: rotate(30deg);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        
+        .tools-button {
+            display: inline-block;
+            text-decoration: none;
+            color: white;
+            background-color: var(--button-bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            text-align: center;
+        }
+        
+        .tools-button:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+        
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.7;
+            animation: fadeIn 1s ease-in-out;
+        }
+        
+        /* 动画效果 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 落子动画 */
+        .cell.x-mark::before,
+        .cell.o-mark::before {
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s;
+        }
+        
+        .cell.x-mark::before {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .cell.o-mark::before {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        /* 语言切换按钮容器 */
+        .lang-buttons {
+            position: absolute;
+            top: 20px;
+            right: 80px; /* 放在暗色模式按钮旁边 */
+            display: flex;
+            gap: 5px;
+            z-index: 100;
+        }
+        
+        /* 语言切换按钮样式 */
+        .lang-toggle {
+            background-color: var(--container-bg);
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            color: var(--text-color);
+            box-shadow: 0 2px 5px var(--shadow-color);
+            opacity: 0.7;
+        }
+        
+        .lang-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+            opacity: 1;
+        }
+        
+        .lang-toggle.active {
+            opacity: 1;
+            background-color: var(--button-active);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" id="darkModeToggle">🌓</button>
+    <div class="lang-buttons">
+        <button class="lang-toggle active" id="zhToggle">中文</button>
+        <button class="lang-toggle" id="enToggle">EN</button>
+    </div>
+    
+    <h1>AI井字棋游戏</h1>
+    <div class="author">作者: ikdxhz</div>
+    
+    <div class="game-container">
+        <div class="controls">
+            <div class="settings-container">
+                <div class="settings-label">游戏模式</div>
+                <div class="mode-buttons">
+                    <button id="player-vs-ai" class="active">玩家 VS AI</button>
+                    <button id="player-vs-player">玩家 VS 玩家</button>
+                    <button id="ai-vs-ai">AI VS AI</button>
+                </div>
+                
+                <div class="settings-label">先手选择</div>
+                <div class="first-move-buttons">
+                    <button id="player-first" class="active">玩家先手</button>
+                    <button id="ai-first">AI先手</button>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="reset-game">重新开始</button>
+                </div>
+            </div>
+        </div>
+        <div class="status" id="status">轮到 X 下棋</div>
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        
+        <div class="button-group">
+            <a href="gz.html" class="tools-button" target="_blank">游戏规则</a>
+            <a href="https://wz.ikdxhz.top" class="tools-button" target="_blank">访问更多工具: wz.ikdxhz.top</a>
+        </div>
+    </div>
+    
+    <div class="footer">
+        © 2025 井字棋游戏 by ikdxhz
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 游戏状态
+            const gameState = {
+                board: Array(9).fill(''),
+                currentPlayer: 'X',
+                firstMove: 'player-first',
+                gameMode: 'player-vs-ai',
+                gameActive: true,
+                aiThinking: false
+            };
+
+            // 获取DOM元素
+            const boardElement = document.getElementById('board');
+            const statusElement = document.getElementById('status');
+            const cells = document.querySelectorAll('.cell');
+            const firstMoveButtons = document.querySelectorAll('.first-move-buttons button');
+            const modeButtons = document.querySelectorAll('.mode-buttons button');
+            const resetButton = document.getElementById('reset-game');
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const zhToggle = document.getElementById('zhToggle');
+            const enToggle = document.getElementById('enToggle');
+
+            // 胜利条件
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // 行
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // 列
+                [0, 4, 8], [2, 4, 6]             // 对角线
+            ];
+
+            // 角落和边位置
+            const corners = [0, 2, 6, 8];
+            const edges = [1, 3, 5, 7];
+
+            // 添加暗黑模式切换
+            darkModeToggle.addEventListener('click', () => {
+                const html = document.documentElement;
+                if (html.getAttribute('data-theme') === 'light') {
+                    html.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    html.setAttribute('data-theme', 'light');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+
+            // 检查保存的主题偏好
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                // 如果没有保存过主题，但系统是暗色模式
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+
+            // 添加单元格点击事件
+            cells.forEach(cell => {
+                cell.addEventListener('click', () => {
+                    const index = parseInt(cell.getAttribute('data-index'));
+                    handleCellClick(index);
+                });
+            });
+
+            // 添加先手选择按钮点击事件
+            firstMoveButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    firstMoveButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    gameState.firstMove = button.id;
+                    resetGame(true);
+                });
+            });
+
+            // 添加模式按钮点击事件
+            modeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // 立即停止任何正在进行的AI对战或思考
+                    clearTimeout(window.aiMoveTimeout);
+                    clearTimeout(window.aiVsAiTimeout);
+                    
+                    // 取消AI思考状态
+                    gameState.aiThinking = false;
+                    
+                    // 更新按钮状态
+                    modeButtons.forEach(btn => {
+                        if (btn.id !== 'reset-game') {
+                            btn.classList.remove('active');
+                        }
+                    });
+                    button.classList.add('active');
+                    
+                    // 更新游戏模式
+                    gameState.gameMode = button.id;
+                    
+                    // 更新先手选择的可见性
+                    const firstMoveSection = document.querySelector('.first-move-buttons');
+                    const firstMoveLabel = document.querySelector('.settings-label:nth-of-type(2)');
+                    
+                    if (button.id === 'player-vs-ai') {
+                        firstMoveSection.style.display = 'flex';
+                        if (firstMoveLabel) {
+                            firstMoveLabel.style.display = 'block';
+                        }
+                    } else {
+                        firstMoveSection.style.display = 'none';
+                        if (firstMoveLabel) {
+                            firstMoveLabel.style.display = 'none';
+                        }
+                    }
+                    
+                    // 清空棋盘并开始新游戏
+                    resetGame(true);
+                });
+            });
+
+            // 单独为重置按钮添加事件监听（在获取resetButton之后）：
+            resetButton.addEventListener('click', () => {
+                resetGame(true);
+            });
+
+            // 修改语言切换按钮逻辑
+            zhToggle.addEventListener('click', () => {
+                // 跳转到中文版
+                window.location.href = 'index.html';
+            });
+            
+            enToggle.addEventListener('click', () => {
+                // 跳转到英文版
+                window.location.href = 'en.html';
+            });
+
+            // 处理单元格点击
+            function handleCellClick(index) {
+                // 如果单元格已被占用、游戏已结束或AI正在思考，返回
+                if (gameState.board[index] !== '' || !gameState.gameActive || gameState.aiThinking) {
+                    return;
+                }
+
+                // 玩家移动
+                makeMove(index, gameState.currentPlayer);
+
+                // 检查游戏状态
+                if (!checkGameState()) {
+                    // 如果是玩家对战AI模式并且轮到AI
+                    if (gameState.gameMode === 'player-vs-ai' && gameState.currentPlayer === 'O' && gameState.gameActive) {
+                        // 设置AI思考状态
+                        gameState.aiThinking = true;
+                        updateStatus("AI正在思考...", true);
+                        
+                        // 禁用所有单元格点击
+                        disableCellClicks();
+                        
+                        window.aiMoveTimeout = setTimeout(() => {
+                            makeAIMove();
+                            checkGameState();
+                            
+                            // 恢复单元格点击
+                            enableCellClicks();
+                            
+                            // 重置AI思考状态
+                            gameState.aiThinking = false;
+                            updateStatus();
+                        }, 1000);
+                    }
+                    // 如果是AI对战AI模式并且游戏还在进行中
+                    else if (gameState.gameMode === 'ai-vs-ai' && gameState.gameActive) {
+                        continueAIvsAI();
+                    }
+                }
+            }
+
+            // 禁用所有单元格点击
+            function disableCellClicks() {
+                cells.forEach(cell => {
+                    cell.classList.add('disabled');
+                });
+            }
+
+            // 启用所有单元格点击
+            function enableCellClicks() {
+                cells.forEach(cell => {
+                    if (gameState.board[parseInt(cell.getAttribute('data-index'))] === '') {
+                        cell.classList.remove('disabled');
+                    }
+                });
+            }
+
+            // 继续AI对战AI模式
+            function continueAIvsAI() {
+                if (!gameState.gameActive) return;
+                
+                gameState.aiThinking = true;
+                
+                const currentAILabel = gameState.currentPlayer === 'X' ? 'AI-X' : 'AI-O';
+                updateStatus(`${currentAILabel} 正在思考...`, true);
+                
+                disableCellClicks();
+                
+                window.aiMoveTimeout = setTimeout(() => {
+                    makeAIMove();
+                    
+                    if (!checkGameState() && gameState.gameActive) {
+                        window.aiVsAiTimeout = setTimeout(continueAIvsAI, 1200);
+                    } else {
+                        gameState.aiThinking = false;
+                    }
+                }, 1000);
+            }
+
+            // 执行一步移动
+            function makeMove(index, player) {
+                gameState.board[index] = player;
+                
+                // 先清除可能的旧类
+                cells[index].classList.remove('x-mark', 'o-mark');
+                
+                // 设置文本并添加类以触发动画
+                cells[index].textContent = player;
+                cells[index].classList.add(player === 'X' ? 'x-mark' : 'o-mark');
+                cells[index].classList.add('disabled');
+                
+                // 添加动画效果
+                cells[index].style.animation = 'pulse 0.5s';
+                setTimeout(() => {
+                    cells[index].style.animation = '';
+                }, 500);
+                
+                gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+                updateStatus();
+            }
+
+            // 更新状态信息
+            function updateStatus(customMessage, thinking) {
+                if (customMessage) {
+                    statusElement.textContent = customMessage;
+                    if (thinking) {
+                        statusElement.classList.add('thinking');
+                    } else {
+                        statusElement.classList.remove('thinking');
+                    }
+                    return;
+                }
+                
+                statusElement.classList.remove('thinking');
+                
+                let playerLabel;
+                if (gameState.gameMode === 'player-vs-ai') {
+                    playerLabel = gameState.currentPlayer === 'X' ? '玩家' : 'AI';
+                } else if (gameState.gameMode === 'player-vs-player') {
+                    playerLabel = gameState.currentPlayer === 'X' ? '玩家1' : '玩家2';
+                } else { // AI vs AI
+                    playerLabel = gameState.currentPlayer === 'X' ? 'AI-X' : 'AI-O';
+                }
+                
+                statusElement.textContent = `轮到 ${playerLabel} 下棋`;
+                
+                // 为状态添加动画效果
+                statusElement.style.animation = 'fadeIn 0.3s';
+                setTimeout(() => {
+                    statusElement.style.animation = '';
+                }, 300);
+            }
+
+            // 检查游戏状态（胜利、平局或继续）
+            function checkGameState() {
+                // 检查是否有玩家获胜
+                const winResult = checkWinner();
+                if (winResult) {
+                    const [winner, pattern] = winResult;
+                    
+                    let winnerLabel;
+                    if (gameState.gameMode === 'player-vs-ai') {
+                        winnerLabel = winner === 'X' ? '玩家' : 'AI';
+                    } else if (gameState.gameMode === 'player-vs-player') {
+                        winnerLabel = winner === 'X' ? '玩家1' : '玩家2';
+                    } else { // AI vs AI
+                        winnerLabel = winner === 'X' ? 'AI-X' : 'AI-O';
+                    }
+                    
+                    statusElement.textContent = `${winnerLabel} 获胜！`;
+                    gameState.gameActive = false;
+                    
+                    // 高亮获胜线
+                    pattern.forEach(index => {
+                        cells[index].classList.add('win-highlight');
+                    });
+                    
+                    return true;
+                }
+
+                // 检查是否平局
+                if (!gameState.board.includes('')) {
+                    statusElement.textContent = '平局！';
+                    gameState.gameActive = false;
+                    return true;
+                }
+
+                return false;
+            }
+
+            // 检查是否有玩家获胜，返回获胜者和获胜路径
+            function checkWinner() {
+                for (const pattern of winPatterns) {
+                    const [a, b, c] = pattern;
+                    if (
+                        gameState.board[a] &&
+                        gameState.board[a] === gameState.board[b] &&
+                        gameState.board[a] === gameState.board[c]
+                    ) {
+                        return [gameState.board[a], pattern];
+                    }
+                }
+                return null;
+            }
+
+            // 重置游戏
+            function resetGame(startNewGame = true) {
+                // 停止所有正在进行的计时器
+                clearTimeout(window.aiMoveTimeout);
+                clearTimeout(window.aiVsAiTimeout);
+                
+                gameState.board = Array(9).fill('');
+                gameState.currentPlayer = 'X';
+                gameState.gameActive = true;
+                gameState.aiThinking = false;
+                
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('win-highlight', 'disabled', 'x-mark', 'o-mark');
+                });
+                
+                // 棋盘重置动画
+                if (boardElement) {
+                    boardElement.style.animation = 'fadeIn 0.5s';
+                    setTimeout(() => {
+                        boardElement.style.animation = '';
+                    }, 500);
+                }
+                
+                // 如果不需要开始新游戏，则不执行后续的AI启动代码
+                if (!startNewGame) {
+                    return;
+                }
+                
+                updateStatus();
+                
+                // 根据游戏模式和先手设置确定初始行动
+                if (gameState.gameMode === 'player-vs-ai') {
+                    // 如果AI先手，让AI走棋
+                    if (gameState.firstMove === 'ai-first') {
+                        startAIMove();
+                    }
+                } 
+                else if (gameState.gameMode === 'ai-vs-ai') {
+                    // AI vs AI模式，开始AI对战
+                    window.aiVsAiTimeout = setTimeout(continueAIvsAI, 800);
+                }
+            }
+
+            // 开始AI移动
+            function startAIMove() {
+                gameState.aiThinking = true;
+                updateStatus("AI正在思考...", true);
+                
+                disableCellClicks();
+                
+                window.aiMoveTimeout = setTimeout(() => {
+                    makeAIMove();
+                    
+                    enableCellClicks();
+                    
+                    gameState.aiThinking = false;
+                    updateStatus();
+                }, 1000);
+            }
+
+            // AI走棋
+            function makeAIMove() {
+                const moveIndex = makeExpertAIMove();
+                makeMove(moveIndex, gameState.currentPlayer);
+            }
+
+            // 专家AI算法
+            function makeExpertAIMove() {
+                const emptyCells = gameState.board.filter(cell => cell === '').length;
+                
+                // 开局策略
+                if (emptyCells === 9) {
+                    // 第一步总是选择角落
+                    return corners[Math.floor(Math.random() * corners.length)];
+                } else if (emptyCells === 8) {
+                    // 第二步策略：如果对手下在中间，则选角落；如果对手下在角落，则下中间；如果对手下在边，则下中间
+                    if (gameState.board[4] !== '') {
+                        // 对手下在中间，选择角落
+                        return corners[Math.floor(Math.random() * corners.length)];
+                    } else {
+                        // 对手没下在中间，则我们下在中间
+                        return 4;
+                    }
+                }
+                
+                // 使用Alpha-Beta剪枝的极小极大算法
+                return minimaxAlphaBeta(gameState.board, gameState.currentPlayer, 0, -Infinity, Infinity).index;
+            }
+
+            // 带Alpha-Beta剪枝的极小极大算法
+            function minimaxAlphaBeta(board, player, depth, alpha, beta) {
+                const emptyCells = board
+                    .map((cell, index) => cell === '' ? index : null)
+                    .filter(index => index !== null);
+                
+                // 检查是否有玩家获胜
+                const winner = checkWinnerForBoard(board);
+                if (winner && winner[0] === 'O') return { score: 10 - depth };
+                if (winner && winner[0] === 'X') return { score: depth - 10 };
+                if (emptyCells.length === 0) return { score: 0 };
+                
+                let bestMove = { index: -1 };
+                
+                if (player === 'O') { // AI最大化
+                    let bestScore = -Infinity;
+                    for (const index of emptyCells) {
+                        board[index] = player;
+                        
+                        const score = minimaxAlphaBeta(board, 'X', depth + 1, alpha, beta).score;
+                        board[index] = '';
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove.index = index;
+                            bestMove.score = bestScore;
+                        }
+                        
+                        alpha = Math.max(alpha, bestScore);
+                        if (beta <= alpha) break; // Beta剪枝
+                    }
+                    return bestMove;
+                } else { // 玩家最小化
+                    let bestScore = Infinity;
+                    for (const index of emptyCells) {
+                        board[index] = player;
+                        
+                        const score = minimaxAlphaBeta(board, 'O', depth + 1, alpha, beta).score;
+                        board[index] = '';
+                        
+                        if (score < bestScore) {
+                            bestScore = score;
+                            bestMove.index = index;
+                            bestMove.score = bestScore;
+                        }
+                        
+                        beta = Math.min(beta, bestScore);
+                        if (beta <= alpha) break; // Alpha剪枝
+                    }
+                    return bestMove;
+                }
+            }
+
+            // 为极小极大算法检查获胜者
+            function checkWinnerForBoard(board) {
+                for (const pattern of winPatterns) {
+                    const [a, b, c] = pattern;
+                    if (
+                        board[a] &&
+                        board[a] === board[b] &&
+                        board[a] === board[c]
+                    ) {
+                        return [board[a], pattern];
+                    }
+                }
+                return null;
+            }
+
+            // 初始化游戏
+            resetGame();
+        });
+    </script>
+</body>
+</html> 

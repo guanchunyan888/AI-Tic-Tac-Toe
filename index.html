@@ -797,7 +797,12 @@
                 if (gameState.gameMode === 'player-vs-ai') {
                     // 如果AI先手，让AI走棋
                     if (gameState.firstMove === 'ai-first') {
+                        // 确保当前玩家设置为O（AI）
+                        gameState.currentPlayer = 'O';
                         startAIMove();
+                    } else {
+                        // 玩家先手时设置为X
+                        gameState.currentPlayer = 'X';
                     }
                 } 
                 else if (gameState.gameMode === 'ai-vs-ai') {
@@ -816,10 +821,11 @@
                 window.aiMoveTimeout = setTimeout(() => {
                     makeAIMove();
                     
-                    enableCellClicks();
-                    
-                    gameState.aiThinking = false;
+                    // 移动后立即更新状态
                     updateStatus();
+                    
+                    enableCellClicks();
+                    gameState.aiThinking = false;
                 }, 1000);
             }
 
